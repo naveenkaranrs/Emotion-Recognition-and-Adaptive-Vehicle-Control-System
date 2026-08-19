@@ -1,0 +1,13 @@
+# Core
+opencv-python
+numpy
+requests
+
+# AI Models (install all for best accuracy)
+fer                # FER CNN emotion classifier (primary model)
+mediapipe          # Face Mesh - Eye Aspect Ratio for fatigue detection
+deepface           # Secondary emotion model (ensemble voting)
+tf-keras           # Required by DeepFace
+
+# YOLO (optional, not used in current version)
+# ultralytics

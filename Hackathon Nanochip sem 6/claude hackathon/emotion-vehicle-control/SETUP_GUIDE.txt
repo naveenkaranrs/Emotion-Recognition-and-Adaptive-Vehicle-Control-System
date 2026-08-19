@@ -1,0 +1,257 @@
+============================================================
+  EMOTION-AWARE VEHICLE CONTROL SYSTEM - COMPLETE SETUP GUIDE
+============================================================
+
+ARCHITECTURE:
+  Phone (IP Webcam) --> PC (Python + Emotion Detection) --> ESP32 (Dashboard + WiFi) --> STM32 (Motor Control via L298N)
+                                                              |
+                                                          Web Browser (Dashboard)
+
+============================================================
+HARDWARE WIRING
+============================================================
+
+1. STM32F103RB (Nucleo-64) <--> ESP32 (UART Communication)
+   -----------------------------------------------
+   STM32 PA2  (TX2 / D1) ----> ESP32 GPIO16 (RX2)
+   STM32 PA3  (RX2 / D0) <---- ESP32 GPIO17 (TX2)
+   STM32 GND  ----------------> ESP32 GND
+
+   IMPORTANT: Both must share common GND!
+   NOTE: On Nucleo F103RB, Serial1 (PA9/PA10) is occupied by ST-Link
+         debug USB. We use Serial2 (PA2/PA3) for ESP32 communication.
+   Both are 3.3V logic - direct connection is fine.
+
+2. STM32 <--> L298N Motor Driver
+   -----------------------------------------------
+   L298N INPUT Side (from STM32):
+   -----------------------------------------------
+   Front Motors (Motor A - Left Side):
+     STM32 PB0  (D3)  ----> L298N IN1
+     STM32 PA4  (A2)  ----> L298N IN2
+     STM32 PA8  (D7)  ----> L298N ENA  (PWM speed control)
+     REMOVE the ENA jumper cap to use PWM!
+
+   Rear Motors (Motor B - Right Side):
+     STM32 PB5  (D4)  ----> L298N IN3
+     STM32 PB10 (D6)  ----> L298N IN4
+     STM32 PA7  (D11) ----> L298N ENB  (PWM speed control)
+     REMOVE the ENB jumper cap to use PWM!
+
+   L298N OUTPUT Side (to Motors):
+   -----------------------------------------------
+     L298N OUT1 ----> Front-Left Motor  (+)  \
+                                               } wired in parallel
+     L298N OUT2 ----> Front-Left Motor  (-)  /
+                      Front-Right Motor (+)  connects to OUT1
+                      Front-Right Motor (-)  connects to OUT2
+
+     L298N OUT3 ----> Rear-Left Motor   (+)  \
+                                               } wired in parallel
+     L298N OUT4 ----> Rear-Left Motor   (-)  /
+                      Rear-Right Motor  (+)  connects to OUT3
+                      Rear-Right Motor  (-)  connects to OUT4
+
+   Wiring Diagram (2 motors per channel, parallel):
+   -----------------------------------------------
+     OUT1 ----+---- Front-Left Motor (+)
+              +---- Front-Right Motor (+)
+
+     OUT2 ----+---- Front-Left Motor (-)
+              +---- Front-Right Motor (-)
+
+     OUT3 ----+---- Rear-Left Motor (+)
+              +---- Rear-Right Motor (+)
+
+     OUT4 ----+---- Rear-Left Motor (-)
+              +---- Rear-Right Motor (-)
+
+3. L298N Power
+   -----------------------------------------------
+   L298N 12V  <---- Battery (7-12V)
+   L298N GND  <---- Battery GND + STM32 GND + ESP32 GND
+   L298N 5V   ----> Can power STM32/ESP32 (if 5V regulator jumper is ON)
+
+   IMPORTANT: Remove ENA and ENB jumper caps!
+   The jumpers short ENA/ENB to 5V (full speed, no PWM control).
+   We need PWM from STM32, so remove both jumper caps and connect
+   ENA to PA8 and ENB to PA7 with wires.
+
+============================================================
+SOFTWARE SETUP
+============================================================
+
+STEP 1: Arduino IDE Setup for STM32
+-----------------------------------------------
+a) Install STM32duino board package:
+   - Arduino IDE -> File -> Preferences
+   - Add to "Additional Board Manager URLs":
+     https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json
+   - Tools -> Board -> Board Manager -> Search "STM32" -> Install "STM32 MCU based boards"
+
+b) Select your board:
+   - Tools -> Board -> STM32 boards -> Nucleo-64
+   - Tools -> Board part number -> Nucleo F103RB
+   - Tools -> Upload method -> Mass Storage  (just drag-drop via USB!)
+   - OR: Tools -> Upload method -> STM32CubeProgrammer (SWD)
+
+   NOTE: Nucleo boards have built-in ST-Link, so just plug USB and upload.
+   No external programmer or BOOT0 jumper needed!
+
+c) Open: STM32_MotorControl/STM32_MotorControl.ino
+d) Upload to STM32
+
+STEP 2: Arduino IDE Setup for ESP32
+-----------------------------------------------
+a) Install ESP32 board package:
+   - Arduino IDE -> File -> Preferences
+   - Add to "Additional Board Manager URLs":
+     https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+   - Tools -> Board -> Board Manager -> Search "ESP32" -> Install
+
+b) Install libraries (Sketch -> Include Library -> Manage Libraries):
+   - ArduinoJson (by Benoit Blanchon) - v7.x
+
+c) Open: ESP32_Dashboard/ESP32_Dashboard.ino
+   - Change WiFi credentials:
+     const char* ssid = "YOUR_WIFI_SSID";
+     const char* password = "YOUR_WIFI_PASSWORD";
+
+d) Select board: Tools -> Board -> ESP32 Dev Module
+e) Upload to ESP32
+f) Open Serial Monitor (115200 baud) - note the IP address printed
+
+STEP 3: Python Emotion Detector (on PC)
+-----------------------------------------------
+a) Install Python 3.8+
+
+b) Install dependencies:
+   pip install ultralytics opencv-python requests numpy
+
+c) Install IP Webcam app on your Android phone:
+   - Download from Play Store: "IP Webcam" by Pavel Khlebovich
+   - Open the app -> Scroll down -> "Start server"
+   - Note the IP address shown (e.g., http://192.168.1.100:8080)
+
+d) Edit emotion_detector.py:
+   - Set PHONE_IP to your phone's IP
+   - Set ESP32_IP to ESP32's IP (from Step 2f)
+
+e) Run:
+   python emotion_detector.py
+
+STEP 4: Open Dashboard
+-----------------------------------------------
+a) Open a web browser on any device on the same WiFi
+b) Navigate to: http://<ESP32_IP_ADDRESS>
+   (the IP printed in ESP32's serial monitor)
+
+============================================================
+USAGE
+============================================================
+
+Dashboard Controls:
+  - JOYSTICK: Click/drag or touch to control car direction
+  - KEYBOARD: WASD or Arrow Keys for movement
+  - SPEED SLIDER: Set maximum speed manually
+  - EMERGENCY STOP: Click or press SPACEBAR
+  - All controls work on mobile browsers too
+
+Emotion Detection:
+  - The Python script automatically detects emotions
+  - Manual override keys (in Python window):
+    1 = Force CALM
+    2 = Force AGGRESSIVE
+    3 = Force FATIGUED
+    0 = Auto-detect mode
+  - Q = Quit
+
+Emotion Effects on Vehicle:
+  - CALM:       Full speed allowed (PWM 0-255)
+  - AGGRESSIVE: Speed limited to ~47% (PWM 0-120), alerts triggered
+  - FATIGUED:   Speed limited to ~39% (PWM 0-100), alarm + alerts
+
+============================================================
+PIN MAPPING SUMMARY
+============================================================
+
+ESP32 Pins:
+  GPIO16 (RX2) - UART receive from STM32
+  GPIO17 (TX2) - UART transmit to STM32
+
+STM32F103RB Nucleo-64 Pins:
+  PA2  (TX2 / D1)  - UART transmit to ESP32 (Serial2)
+  PA3  (RX2 / D0)  - UART receive from ESP32 (Serial2)
+  PB0  (D3)        - L298N IN1 (Front motor direction)
+  PA4  (A2)        - L298N IN2 (Front motor direction)
+  PA8  (D7)        - L298N ENA (Front motor PWM speed)
+  PB5  (D4)        - L298N IN3 (Rear motor direction)
+  PB10 (D6)        - L298N IN4 (Rear motor direction)
+  PA7  (D11)       - L298N ENB (Rear motor PWM speed)
+
+  NOTE: PA9/PA10 (Serial1) is reserved for ST-Link USB debug on Nucleo.
+
+============================================================
+UART PROTOCOL
+============================================================
+
+ESP32 -> STM32:
+  Format: CMD,joyX,joyY,speedLimit,emergency\n
+  Example: CMD,50,-30,200,0
+
+  joyX:       -100 to 100 (left/right steering)
+  joyY:       -100 to 100 (backward/forward)
+  speedLimit: 0 to 255 (max PWM)
+  emergency:  0 or 1
+
+STM32 -> ESP32:
+  ACK,status\n
+  Example: ACK,ok / ACK,emergency / ACK,timeout
+
+Python -> ESP32 (HTTP POST /api/emotion):
+  JSON: {"emotion": "calm|aggressive|fatigued", "confidence": 0.0-1.0}
+
+============================================================
+TROUBLESHOOTING
+============================================================
+
+1. ESP32 not connecting to WiFi:
+   - Check SSID and password
+   - ESP32 starts in AP mode as fallback (SSID: EmotionVehicle, Pass: 12345678)
+
+2. Motors not moving:
+   - Check L298N ENA/ENB jumpers are removed (using external PWM)
+   - Verify 12V power to L298N
+   - Check motor wiring to L298N output terminals
+   - Open STM32 serial monitor to see debug output
+
+3. No emotion updates on dashboard:
+   - Verify Python script is running and shows "ESP32: OK"
+   - Check ESP32 IP matches in Python config
+   - All devices must be on same WiFi network
+
+4. IP Webcam not connecting:
+   - Phone and PC must be on same WiFi
+   - Try opening http://PHONE_IP:8080 in browser first
+   - Disable VPN if active
+
+5. STM32F103RB Nucleo upload issues in Arduino IDE:
+   - Nucleo has built-in ST-Link - just plug USB cable
+   - Use "Mass Storage" upload method (appears as USB drive)
+   - If Mass Storage fails, install STM32CubeProgrammer and use SWD method
+   - Make sure no other serial monitor is locking the COM port
+
+============================================================
+DEMO VIDEO TIPS
+============================================================
+
+1. Show the wiring and hardware setup
+2. Show ESP32 serial monitor with IP address
+3. Open dashboard in browser - show joystick control
+4. Show Python emotion detection window
+5. Demonstrate each emotion:
+   - Calm driving (normal speed)
+   - Press 2 for aggressive (speed drops, alerts)
+   - Press 3 for fatigued (speed drops further, warnings)
+6. Show emergency stop button
+7. Show emotion timeline and safety score on dashboard
