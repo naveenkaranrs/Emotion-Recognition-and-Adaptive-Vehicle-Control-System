@@ -190,9 +190,22 @@ GET /api/alerts      // Alert log
 
 ---
 
-## 👥 Team
+## 🏆 Hackathon Recognition
 
-Built for Hackathon 2026
+Developed and demonstrated during the **KARE Student Innovation Hackathon 2026** (Kalasalingam Academy of Research and Education).
+
+---
+
+## ⚠️ System Limitations & Engineering Constraints
+
+For technical accuracy and interview review, please note the following design characteristics of this prototype:
+
+1. **Inter-MCU Communication Bus:**
+   The production prototype utilizes a dedicated **Hardware UART (USART3 at 115200 baud)** serial link between the ESP32 wireless hub and the STM32F103RB motor controller with CSV-delimited packets (`CMD,joyX,joyY,speedLimit,emergency`). While CAN bus transceivers (MCP2515) were evaluated in initial architecture planning, physical bus integration was constrained by hackathon prototyping time.
+2. **AI Processing Location:**
+   Driver facial emotion classification is executed on a host workstation utilizing OpenCV and DeepFace (`VGG-Face` backend) processing frames from an IP camera stream, with parsed emotional states (`calm`, `aggressive`, `fatigued`) dispatched to the ESP32 gateway over HTTP POST.
+3. **Safety Watchdog:**
+   Motor actuation contains an automatic 500 ms command timeout watchdog on the STM32 to ensure failsafe motor shutdown if serial communication is interrupted.
 
 ---
 
