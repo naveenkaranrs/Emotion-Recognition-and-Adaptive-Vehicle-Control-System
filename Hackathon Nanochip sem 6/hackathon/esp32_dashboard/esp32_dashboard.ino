@@ -35,8 +35,8 @@
 #include <ArduinoJson.h>
 
 // ===== WiFi Configuration =====
-const char* ssid = "Harish";
-const char* password = "123456799";
+const char* ssid = "YOUR_WIFI_SSID";
+const char* password = "YOUR_WIFI_PASSWORD";
 
 // ===== L298N Motor Driver Pins (ESP32 GPIO) =====
 #define IN1   25    // Left motor direction 1
